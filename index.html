@@ -199,21 +199,23 @@ footer b{font-family:Marcellus,serif;font-weight:400;font-size:20px;color:#fff;d
       <a href="https://www.tiktok.com/@cahayamahligaibks"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 3c.3 2.2 1.6 3.6 3.8 3.8v3c-1.4.1-2.6-.3-3.8-1v6.4c0 3.2-2.5 5.8-5.8 5.8S5 18.4 5 15.2s2.7-5.9 6.3-5.6v3.1c-1.7-.3-3.2.9-3.2 2.5 0 1.5 1.2 2.7 2.7 2.7s2.7-1.2 2.7-2.9V3h3z"/></svg>TikTok</a>
     </div>
   </div>
-  <form id="f" novalidate>
-    <div><label for="name">Your name <span>*</span></label><input id="name" autocomplete="name" required><div class="err" id="e-name"></div></div>
-    <div><label for="phone">Phone / WhatsApp <span>*</span></label><input id="phone" type="tel" autocomplete="tel" placeholder="+65" required><div class="err" id="e-phone"></div></div>
-    <div><label for="date">Event date <span>*</span></label><input id="date" type="date" required><div class="err" id="e-date"></div></div>
-    <div><label for="type">Event type</label><select id="type"><option>Wedding</option><option>Corporate event</option><option>Cultural celebration</option><option>Community gathering</option><option>Other</option></select></div>
-    <div><label for="pkg">Package</label><select id="pkg"><option>One-way kompang</option><option>Two-way kompang</option><option>Not sure yet</option></select></div>
-    <div><label for="time">Preferred time</label><input id="time" type="time"></div>
-    <div class="full"><label for="venue">Venue / location <span>*</span></label><input id="venue" placeholder="e.g. void deck at Tampines, hotel ballroom" required><div class="err" id="e-venue"></div></div>
-    <div class="full"><label for="msg">Anything else?</label><textarea id="msg" placeholder="Song requests, timing, venue access, questions…"></textarea></div>
-    <div class="full"><button class="btn red" type="submit" style="width:100%">Prepare my enquiry</button></div>
+  <form id="f" name="enquiry" method="POST" data-netlify="true" netlify-honeypot="bot-field" novalidate>
+    <input type="hidden" name="form-name" value="enquiry">
+    <p hidden><label>Leave this empty <input name="bot-field"></label></p>
+    <div><label for="name">Your name <span>*</span></label><input id="name" name="name" autocomplete="name" required><div class="err" id="e-name"></div></div>
+    <div><label for="phone">Phone / WhatsApp <span>*</span></label><input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+65" required><div class="err" id="e-phone"></div></div>
+    <div><label for="date">Event date <span>*</span></label><input id="date" name="date" type="date" required><div class="err" id="e-date"></div></div>
+    <div><label for="type">Event type</label><select id="type" name="event_type"><option>Wedding</option><option>Corporate event</option><option>Cultural celebration</option><option>Community gathering</option><option>Other</option></select></div>
+    <div><label for="pkg">Package</label><select id="pkg" name="package"><option>One-way kompang</option><option>Two-way kompang</option><option>Not sure yet</option></select></div>
+    <div><label for="time">Preferred time</label><input id="time" name="time" type="time"></div>
+    <div class="full"><label for="venue">Venue / location <span>*</span></label><input id="venue" name="venue" placeholder="e.g. void deck at Tampines, hotel ballroom" required><div class="err" id="e-venue"></div></div>
+    <div class="full"><label for="msg">Anything else?</label><textarea id="msg" name="message" placeholder="Song requests, timing, venue access, questions…"></textarea></div>
+    <div class="full"><button class="btn red" type="submit" style="width:100%">Send enquiry</button></div>
     <div class="result" id="res" aria-live="polite">
-      <p style="font-weight:600;margin-bottom:8px">Your enquiry is ready. Send it to us on WhatsApp:</p>
+      <p id="restitle" style="font-weight:600;margin-bottom:8px"></p>
       <pre id="preview"></pre>
       <div class="row"><a class="btn red" id="wa" href="https://wa.me/6598530637">Send on WhatsApp</a><button class="btn ghost" type="button" id="copy">Copy message</button></div>
-      <p class="note" style="margin-top:10px">Nothing is sent until you press send in WhatsApp. You can also copy the message and text it to +65 9853 0637.</p>
+      <p class="note" id="resnote" style="margin-top:10px"></p>
     </div>
   </form>
 </div></section>
@@ -267,8 +269,16 @@ $('f').addEventListener('submit',e=>{
    'Venue: '+$('venue').value.trim(),'Package: '+$('pkg').value].concat($('msg').value.trim()?['','Notes: '+$('msg').value.trim()]:[]).join('\n');
   $('preview').textContent=text;
   $('wa').href='https://wa.me/6598530637?text='+encodeURIComponent(text);
-  $('res').classList.add('show');
-  $('res').scrollIntoView({behavior:'smooth',block:'nearest'});
+  const btn=$('f').querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Sending…';
+  const show=(sent)=>{
+    $('restitle').textContent=sent?'Thank you! Your enquiry has been sent. We\'ll be in touch soon.':'We couldn\'t send the form just now. Please send your enquiry on WhatsApp instead:';
+    $('resnote').textContent=sent?'Want a faster reply? You can also send the same details to us on WhatsApp.':'Nothing is sent until you press send in WhatsApp. You can also copy the message and text it to +65 9853 0637.';
+    $('res').classList.add('show');$('res').scrollIntoView({behavior:'smooth',block:'nearest'});
+    btn.disabled=false;btn.textContent='Send enquiry';
+    if(sent){try{localStorage.removeItem('cm-enq')}catch(e){}}
+  };
+  fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(new FormData($('f'))).toString()})
+    .then(r=>show(r.ok)).catch(()=>show(false));
 });
 $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(text);$('copy').textContent='Copied ✓'}catch(e){$('copy').textContent='Select the text above to copy'}setTimeout(()=>$('copy').textContent='Copy message',2500)});
 }
